@@ -71,3 +71,9 @@ crashlytics-build.properties
 # Temporary auto-generated Android Assets
 /[Aa]ssets/[Ss]treamingAssets/aa.meta
 /[Aa]ssets/[Ss]treamingAssets/aa/*
+
+# Vuforia Package Tarballs (> 100MB GitHub limit) & Runtime Cache
+Packages/*.tgz
+Packages/*.tar.gz
+*.tgz
+/[Qq][Cc][Aa][Rr]/

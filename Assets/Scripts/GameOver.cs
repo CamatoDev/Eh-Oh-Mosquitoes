@@ -10,6 +10,7 @@ public class GameOver : MonoBehaviour
     public SceneFader sceneFader;
     public Text finalScore;
     public PlayerStats stats;
+    public string menuSceneName = "";
 
     // Start is called before the first frame update
     void Start()
@@ -30,6 +31,9 @@ public class GameOver : MonoBehaviour
 
     public void Menu()
     {
-        sceneFader.FadeTo("MainMenu");
+        string targetMenu = !string.IsNullOrEmpty(menuSceneName)
+            ? menuSceneName
+            : (SceneManager.GetActiveScene().name.Contains("Vuforia") ? "MainMenu_Vuforia" : "MainMenu_ARCore");
+        sceneFader.FadeTo(targetMenu);
     }
 }

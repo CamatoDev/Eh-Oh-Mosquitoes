@@ -344,7 +344,7 @@ MonoBehaviour:
   unmuteImage: {fileID: 21300000, guid: 074340e3ae824374fafff55c8eeed40c, type: 3}
   soundButton: {fileID: 2090122204}
   buttonAudioSource: {fileID: 1425794475}
-  levelToLoad: Level01
+  levelToLoad: Level01_ARCore
   sceneFader: {fileID: 1900767925769073587}
 --- !u!82 &513843499
 AudioSource:

@@ -18,7 +18,7 @@ public class MainMenu : MonoBehaviour
 
     // Variales pour le chargement du niveau
     [Header("Level Loader")]
-    public string levelToLoad = "Level01";
+    public string levelToLoad = "Level01_ARCore";
     public SceneFader sceneFader;
 
     // Start is called before the first frame update

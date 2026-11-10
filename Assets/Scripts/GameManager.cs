@@ -22,6 +22,9 @@ public class GameManager : MonoBehaviour
     public PlayerStats playerStats;
     public Transform playerPos;
 
+    [Header("Scene Navigation")]
+    public string menuSceneName = "";
+
     [Header("Final Enemy")]
     public GameObject finalEnemyGO;
     bool hasSpawn = false;
@@ -92,7 +95,10 @@ public class GameManager : MonoBehaviour
     {
         pauseAudioSource.Play();
         Time.timeScale = 1f;
-        sceneFader.FadeTo("MainMenu");
+        string targetMenu = !string.IsNullOrEmpty(menuSceneName)
+            ? menuSceneName
+            : (UnityEngine.SceneManagement.SceneManager.GetActiveScene().name.Contains("Vuforia") ? "MainMenu_Vuforia" : "MainMenu_ARCore");
+        sceneFader.FadeTo(targetMenu);
     }
 
     public void GameOver()
