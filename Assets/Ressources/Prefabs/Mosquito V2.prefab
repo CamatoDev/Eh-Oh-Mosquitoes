@@ -31,7 +31,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0.7071068, z: 0, w: 0.7071068}
   m_LocalPosition: {x: 977.3804, y: 0.032060266, z: 693.86273}
-  m_LocalScale: {x: 100, y: 100, z: 100}
+  m_LocalScale: {x: 50, y: 50, z: 50}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
@@ -121,22 +121,24 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   target: {fileID: 0}
-  explosionRadius: 0.5
-  moveSpeed: 5
-  distanceMax: 40
-  orbitDistance: 5
-  orbitSpeed: 3
+  currentState: 0
+  patrolCenter: {x: 0, y: 0, z: 0}
+  patrolRadius: 2.5
+  patrolSpeed: 2
+  rotationSpeed: 4
+  heightVariationRange: 0.8
   heightVariationSpeed: 1
-  heightVariationRange: 3
-  timeBetweenAttack: 8
-  chaseRange: 10
-  attackRange: 1
+  timeBetweenAttack: 9
+  attackSpeed: 4
+  attackRange: 0.9
+  attackDamage: 20
+  explosionRadius: 0.5
   coin: 100
-  startHealth: 0
-  cloneCooldown: 3
+  startHealth: 100
+  cloneCooldown: 6
   dronePrefab: {fileID: 8355803737289180034}
-  cloneSpawnDistance: 3
-  maxDrones: 25
+  cloneSpawnDistance: 2.5
+  maxDrones: 10
   audioSource: {fileID: 2632004272092352536}
   enemyDie: {fileID: 8300000, guid: b832a7f82db951d419e41df226c20459, type: 3}
 --- !u!82 &2632004272092352536

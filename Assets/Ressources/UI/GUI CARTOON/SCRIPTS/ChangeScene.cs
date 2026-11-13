@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using System.Collections;
 
 public class ChangeScene : MonoBehaviour {
@@ -12,6 +12,6 @@ public class ChangeScene : MonoBehaviour {
 	
 	
 	void GameNameScene(){
-		Application.LoadLevel (NameScene);
+		UnityEngine.SceneManagement.SceneManager.LoadScene(NameScene);
 	}
 }

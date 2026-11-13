@@ -7,10 +7,10 @@ EditorBuildSettings:
   m_Scenes:
   - enabled: 1
     path: Assets/Scenes/MainMenu_Vuforia.unity
-    guid: 43080a7c96664cdea4243e76fa66ccbf
+    guid: 0822f24688da400b9bd28ba18fd33561
   - enabled: 1
     path: Assets/Scenes/Level01_Vuforia.unity
-    guid: 6ea5aea82ee34f9e9231811a1a6be656
+    guid: 9a5fce3ea3164bad8d55c634250922f6
   - enabled: 0
     path: Assets/Scenes/MainMenu_ARCore.unity
     guid: 2548eedae8fa5a0498f8a7e1989923c1

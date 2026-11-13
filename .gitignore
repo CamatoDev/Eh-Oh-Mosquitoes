@@ -77,3 +77,9 @@ Packages/*.tgz
 Packages/*.tar.gz
 *.tgz
 /[Qq][Cc][Aa][Rr]/
+
+# Android Keystores & Local Build Output
+*.keystore
+*.jks
+/[Gg]ame [Bb]uild*/
+

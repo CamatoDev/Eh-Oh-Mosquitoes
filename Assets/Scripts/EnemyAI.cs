@@ -4,189 +4,286 @@ using UnityEngine;
 
 public class EnemyAI : MonoBehaviour
 {
-    // Variables de la cible 
+    public enum DroneState { Patrolling, Attacking, Returning }
+
+    [Header("Cible & √âtat")]
     public Transform target;
-    //Rayon de l'explosion
+    public DroneState currentState = DroneState.Patrolling;
+
+    [Header("Ancrage Spatial & Patrouille")]
+    [Tooltip("Point central d'ancrage dans la pi√®ce (ind√©pendant du joueur)")]
+    public Vector3 patrolCenter;
+    [Tooltip("Rayon de balade autour du centre d'ancrage")]
+    public float patrolRadius = 2.5f;
+    [Tooltip("Vitesse de croisi√®re en patrouille")]
+    public float patrolSpeed = 2.0f;
+    [Tooltip("Vitesse d'orientation vers la direction de vol")]
+    public float rotationSpeed = 4.0f;
+    [Tooltip("Variation d'altitude pendant la patrouille")]
+    public float heightVariationRange = 0.8f;
+    public float heightVariationSpeed = 1.0f;
+
+    [Header("Attaque & Piqu√©")]
+    [Tooltip("D√©lai entre deux attaques en piqu√©")]
+    public float timeBetweenAttack = 9.0f;
+    [Tooltip("Vitesse lors du piqu√© sur le joueur")]
+    public float attackSpeed = 4.0f;
+    [Tooltip("Distance de contact pour piquer le joueur")]
+    public float attackRange = 0.9f;
+    [Tooltip("D√©g√¢ts inflig√©s au joueur lors d'une piq√ªre")]
+    public float attackDamage = 20.0f;
+    [Tooltip("Rayon de l'explosion r√©siduelle")]
     public float explosionRadius = 0.5f;
 
-    // Variables pour le dÈplacement
-    [Header("Enemy mouvement")]
-    public float moveSpeed = 5.0f;
-    public float distanceMax = 40.0f;
-    public float orbitDistance = 5.0f; // Distance ‡ laquelle le drone orbite autour du joueur
-    public float orbitSpeed = 2.0f; // Vitesse ‡ laquelle le drone orbite autour du joueur
-    public float heightVariationSpeed = 1.0f; // Vitesse de variation de la hauteur
-    public float heightVariationRange = 2.0f; // Amplitude de la variation de hauteur
-    //Distance entre le joueur et l'ennemi
-    private float distance;
-
-    // Variable pour l'attaque
-    [Header("Enremy Attack")]
-    public float timeBetweenAttack = 8f;
-    public float chaseRange = 10.0f;
-    public float attackRange = 1.0f;
-    bool onAttack = false;
-
-    [Header("Enemy Stats")]
+    [Header("Statistiques de l'Ennemi")]
     public float coin = 100f;
-    //Pour la vie de l'ennemi 
-    public float startHealth = 100;
+    public float startHealth = 100f;
     private float health;
 
-    [Header("Clone Option")]
-    // Variables pour le dÈdoublement
-    public float cloneCooldown = 5.0f; // Temps entre chaque dÈdoublement
+    [Header("D√©doublement (Clonage)")]
+    public float cloneCooldown = 6.0f;
     private float cloneTimer = 0.0f;
-    public GameObject dronePrefab; // PrÈfabriquÈ du drone ‡ cloner
-    public float cloneSpawnDistance = 3.0f; // Distance minimale entre le clone et l'objet de rÈfÈrence
-    public int maxDrones = 12; // Nombre maximum de drones autorisÈs
+    public GameObject dronePrefab;
+    public float cloneSpawnDistance = 2.5f;
+    public int maxDrones = 10;
 
-    [Header("Song")]
-    // Variable pour le son
+    [Header("Audio")]
     public AudioSource audioSource;
     public AudioClip enemyDie;
 
-    // Variables pour la variation de hauteur
+    // Variables internes de vol et de suivi
+    private Transform playerHead;
+    private Vector3 currentPatrolTarget;
+    private float waypointTimer = 0.0f;
+    private float nextWaypointDelay = 3.0f;
+    private float attackTimer;
     private float baseHeight;
-    private float targetHeight;
-    private float heightTimer;
 
-    // Liste statique pour garder une trace de tous les drones
+    // Liste statique globale de tous les drones actifs
     private static List<EnemyAI> allDrones = new List<EnemyAI>();
 
-    // Start is called before the first frame update
     void Start()
     {
-        // Assignation des variables de lancement
-        target = GameObject.FindGameObjectWithTag("Player").transform;
-        health = startHealth;
-        cloneTimer = cloneCooldown; // Initialisation du timer de dÈdoublement
+        ResolvePlayer();
 
-        // Initialisation de la hauteur de base
+        health = startHealth > 0 ? startHealth : 100f;
+        cloneTimer = cloneCooldown;
+        attackTimer = timeBetweenAttack + Random.Range(-1.5f, 2.0f);
+
+        // Ancrage spatial dans le rep√®re de la pi√®ce
+        if (patrolCenter == Vector3.zero)
+        {
+            patrolCenter = transform.position;
+        }
         baseHeight = transform.position.y;
-        targetHeight = baseHeight;
-        heightTimer = 0.0f;
 
-        // Ajouter ce drone ‡ la liste des drones
-        allDrones.Add(this);
+        PickNewPatrolTarget();
+
+        if (!allDrones.Contains(this))
+        {
+            allDrones.Add(this);
+        }
     }
 
-    // Update is called once per frame
     void Update()
     {
-        // Teste si la cible existe 
-        if (target == null) return;
+        ResolvePlayer();
 
-        distance = Vector3.Distance(transform.position, target.position);
-
-        // Si le drone est trop loin, il revient vers le joueur
-        if (distance > distanceMax)
+        // Gestion de la machine √† √©tats : Patrouille vs Attaque vs Retour
+        switch (currentState)
         {
-            ReturnToPlayer();
+            case DroneState.Patrolling:
+                PatrolRoom();
+                UpdateAttackTimer();
+                break;
+
+            case DroneState.Attacking:
+                AttackDive();
+                break;
+
+            case DroneState.Returning:
+                ReturnToPatrol();
+                break;
+        }
+
+        // Gestion du d√©doublement p√©riodique
+        HandleCloning();
+    }
+
+    /// <summary>
+    /// Trouve la t√™te/cam√©ra du joueur de fa√ßon 100% compatible ARCore et Vuforia.
+    /// </summary>
+    void ResolvePlayer()
+    {
+        if (playerHead != null) return;
+
+        if (Camera.main != null)
+        {
+            playerHead = Camera.main.transform;
         }
         else
         {
-            // On orbite autour du joueur
-            OrbitPlayer();
-            VaryHeight(); // Variation de la hauteur
+            GameObject playerObj = GameObject.FindGameObjectWithTag("Player");
+            if (playerObj != null)
+            {
+                playerHead = playerObj.transform;
+            }
         }
 
-        // Si le drone est ‡ la bonne distance, il tourne autour du joueur 
-        if (distance <= distanceMax)
+        target = playerHead;
+    }
+
+    /// <summary>
+    /// Vol autonome et organique dans la zone de la pi√®ce ("se balader").
+    /// </summary>
+    void PatrolRoom()
+    {
+        waypointTimer += Time.deltaTime;
+        if (waypointTimer >= nextWaypointDelay || Vector3.Distance(transform.position, currentPatrolTarget) < 0.4f)
         {
-            RotateAroundPlayer();
-            VaryHeight(); // Variation de la hauteur
+            PickNewPatrolTarget();
         }
 
-        // Gestion du dÈdoublement
+        // D√©placement progressif vers le waypoint
+        Vector3 targetPos = Vector3.MoveTowards(transform.position, currentPatrolTarget, patrolSpeed * Time.deltaTime);
+
+        // Micro-ondulation d'insecte en vol (battements d'ailes et flottaison r√©aliste)
+        float waveX = Mathf.Sin(Time.time * 6.5f + (float)GetInstanceID()) * 0.003f;
+        float waveY = Mathf.Cos(Time.time * 8.0f + (float)GetInstanceID()) * 0.004f;
+        float waveZ = Mathf.Sin(Time.time * 7.2f + (float)GetInstanceID()) * 0.003f;
+        targetPos += new Vector3(waveX, waveY, waveZ);
+
+        // Orienter le regard du moustique face √† sa trajectoire
+        Vector3 moveDir = (targetPos - transform.position).normalized;
+        if (moveDir.sqrMagnitude > 0.0001f)
+        {
+            Quaternion lookRot = Quaternion.LookRotation(moveDir);
+            transform.rotation = Quaternion.Slerp(transform.rotation, lookRot, rotationSpeed * Time.deltaTime);
+        }
+
+        transform.position = targetPos;
+    }
+
+    void PickNewPatrolTarget()
+    {
+        Vector2 circle = Random.insideUnitCircle * patrolRadius;
+        float heightOffset = Random.Range(-heightVariationRange, heightVariationRange);
+
+        currentPatrolTarget = new Vector3(
+            patrolCenter.x + circle.x,
+            baseHeight + heightOffset,
+            patrolCenter.z + circle.y
+        );
+
+        nextWaypointDelay = Random.Range(2.5f, 5.0f);
+        waypointTimer = 0.0f;
+    }
+
+    void UpdateAttackTimer()
+    {
+        if (playerHead == null) return;
+
+        attackTimer -= Time.deltaTime;
+        if (attackTimer <= 0)
+        {
+            currentState = DroneState.Attacking;
+        }
+    }
+
+    /// <summary>
+    /// Attaque en piqu√© droit sur la cam√©ra/t√™te du joueur.
+    /// </summary>
+    void AttackDive()
+    {
+        if (playerHead == null)
+        {
+            currentState = DroneState.Returning;
+            return;
+        }
+
+        Vector3 targetPos = playerHead.position;
+        Vector3 moveDir = (targetPos - transform.position).normalized;
+
+        transform.position = Vector3.MoveTowards(transform.position, targetPos, attackSpeed * Time.deltaTime);
+
+        if (moveDir.sqrMagnitude > 0.0001f)
+        {
+            Quaternion lookRot = Quaternion.LookRotation(moveDir);
+            transform.rotation = Quaternion.Slerp(transform.rotation, lookRot, rotationSpeed * 2.0f * Time.deltaTime);
+        }
+
+        float dist = Vector3.Distance(transform.position, targetPos);
+        if (dist <= attackRange)
+        {
+            // Infliger les d√©g√¢ts au joueur
+            PlayerActions actions = playerHead.GetComponent<PlayerActions>();
+            if (actions == null) actions = FindObjectOfType<PlayerActions>();
+            if (actions != null)
+            {
+                actions.TakeDamage(attackDamage);
+            }
+
+            // R√©initialiser le timer d'attaque et repartir patrouiller
+            attackTimer = timeBetweenAttack + Random.Range(0f, 3f);
+            currentState = DroneState.Returning;
+            PickNewPatrolTarget();
+        }
+    }
+
+    /// <summary>
+    /// Apr√®s une piq√ªre, le moustique bat en retraite vers sa zone de patrouille.
+    /// </summary>
+    void ReturnToPatrol()
+    {
+        Vector3 targetPos = Vector3.MoveTowards(transform.position, currentPatrolTarget, patrolSpeed * 1.5f * Time.deltaTime);
+        Vector3 moveDir = (targetPos - transform.position).normalized;
+
+        if (moveDir.sqrMagnitude > 0.0001f)
+        {
+            Quaternion lookRot = Quaternion.LookRotation(moveDir);
+            transform.rotation = Quaternion.Slerp(transform.rotation, lookRot, rotationSpeed * Time.deltaTime);
+        }
+
+        transform.position = targetPos;
+
+        if (Vector3.Distance(transform.position, currentPatrolTarget) < 0.5f)
+        {
+            currentState = DroneState.Patrolling;
+            waypointTimer = 0.0f;
+        }
+    }
+
+    void HandleCloning()
+    {
+        if (dronePrefab == null || allDrones.Count >= maxDrones) return;
+
         cloneTimer -= Time.deltaTime;
         if (cloneTimer <= 0)
         {
-            if (allDrones.Count < maxDrones)
-            {
-                CloneDrone();
-            }
-            // Ajuster dynamiquement le cooldown en fonction du nombre de drones
-            cloneTimer = cloneCooldown * (1 + (allDrones.Count / (float)maxDrones));
+            CloneDrone();
+            cloneTimer = cloneCooldown * (1f + ((float)allDrones.Count / maxDrones));
         }
-
-        //Gestion de l'attaque
-        //timeBetweenAttack -= Time.deltaTime;
-        //if (timeBetweenAttack <= 0)
-        //{
-        //    onAttack = true;
-        //    float direction = Vector3.Distance(target.position, transform.position);
-
-        //    if (direction >= attackRange)
-        //    {
-        //        // Aller vers le joueur
-        //        transform.position = Vector3.MoveTowards(transform.position, target.position, moveSpeed * Time.deltaTime);
-        //    }
-        //    Explosion();
-        //}
     }
 
-    // Fonction pour orbiter autour du joueur
-    public void OrbitPlayer()
+    public void CloneDrone()
     {
-        Vector3 direction = (target.position - transform.position).normalized;
-        Vector3 orbitPosition = target.position + (transform.position - target.position).normalized * orbitDistance;
+        if (dronePrefab == null) return;
 
-        // Maintenir la distance orbitale
-        transform.position = Vector3.MoveTowards(transform.position, orbitPosition, moveSpeed * Time.deltaTime);
-    }
+        Vector2 randOffset = Random.insideUnitCircle.normalized * Random.Range(1.5f, cloneSpawnDistance);
+        Vector3 spawnPos = patrolCenter + new Vector3(randOffset.x, Random.Range(-0.3f, 0.4f), randOffset.y);
 
-    // Fonction pour la rotation ciculaire autour du joueur 
-    public void RotateAroundPlayer()
-    {
-        // Mouvement circulaire autour du joueur
-        transform.RotateAround(target.position, Vector3.up, orbitSpeed * Time.deltaTime);
-    }
-
-    // Fonction pour revenir vers le joueur si trop loin
-    public void ReturnToPlayer()
-    {
-        Vector3 direction = (target.position - transform.position).normalized;
-        transform.position = Vector3.MoveTowards(transform.position, target.position + direction * orbitDistance, moveSpeed * Time.deltaTime);
-    }
-
-    // Fonction pour varier la hauteur
-    public void VaryHeight()
-    {
-        heightTimer += Time.deltaTime * heightVariationSpeed;
-
-        // Changer la hauteur cible de maniËre alÈatoire
-        if (heightTimer >= 1.0f)
+        GameObject clone = Instantiate(dronePrefab, spawnPos, Quaternion.identity);
+        EnemyAI cloneAI = clone.GetComponent<EnemyAI>();
+        if (cloneAI != null)
         {
-            targetHeight = baseHeight + Random.Range(-heightVariationRange, heightVariationRange);
-            heightTimer = 0.0f;
+            cloneAI.patrolCenter = spawnPos;
+            cloneAI.baseHeight = spawnPos.y;
         }
-
-        // Interpolation vers la nouvelle hauteur
-        float newY = Mathf.Lerp(transform.position.y, targetHeight, Time.deltaTime * heightVariationSpeed);
-        transform.position = new Vector3(transform.position.x, newY, transform.position.z);
-    }
-
-    // Fonction pour l'attaque explosive
-    public void Explosion()
-    {
-        Collider[] hitColliders = Physics.OverlapSphere(transform.position, explosionRadius);
-        foreach (var hitCollider in hitColliders)
-        {
-            if (hitCollider.CompareTag("Player"))
-            {
-                // Infliger des dÈg‚ts au joueur
-                hitCollider.GetComponent<PlayerActions>().TakeDamage(50); // Exemple de dÈg‚ts
-            }
-        }
-        // DÈtruire le drone aprËs l'explosion
-        Dead();
     }
 
     public void Damage(float damage)
     {
         health -= damage;
-
         if (health <= 0)
         {
             Dead();
@@ -195,32 +292,49 @@ public class EnemyAI : MonoBehaviour
 
     public void Dead()
     {
-        target.gameObject.GetComponent<PlayerStats>().points += coin;
-        // Retirer ce drone de la liste des drones
-        allDrones.Remove(this);
-        // Rajouter une animation d'explosion 
-        audioSource.PlayOneShot(enemyDie);
-        Destroy(gameObject, 0.5f);
-    }
-
-    // Fonction pour cloner le drone
-    public void CloneDrone()
-    {
-        if (dronePrefab != null)
+        // Cr√©diter les points au joueur (fonctionne sur ARCore et Vuforia)
+        PlayerStats stats = null;
+        if (playerHead != null) stats = playerHead.GetComponent<PlayerStats>();
+        if (stats == null) stats = FindObjectOfType<PlayerStats>();
+        if (stats != null)
         {
-            // Calculer une position alÈatoire ‡ une distance suffisante
-            Vector3 spawnPosition;
-            do
-            {
-                spawnPosition = transform.position + new Vector3(Random.Range(-cloneSpawnDistance, cloneSpawnDistance), 0, Random.Range(-cloneSpawnDistance, cloneSpawnDistance));
-            } while (Vector3.Distance(spawnPosition, transform.position) < cloneSpawnDistance);
-
-            // Instancier le clone
-            GameObject droneGO = (GameObject)Instantiate(dronePrefab, spawnPosition, Quaternion.identity);
+            stats.points += coin;
         }
+
+        allDrones.Remove(this);
+
+        if (enemyDie != null)
+        {
+            AudioSource.PlayClipAtPoint(enemyDie, transform.position);
+        }
+
+        Destroy(gameObject);
     }
 
-    // Fonction pour nettoyer la liste des drones (au cas o˘)
+    public void Explosion()
+    {
+        Collider[] hitColliders = Physics.OverlapSphere(transform.position, explosionRadius);
+        foreach (var hitCollider in hitColliders)
+        {
+            if (hitCollider.CompareTag("Player"))
+            {
+                PlayerActions actions = hitCollider.GetComponent<PlayerActions>();
+                if (actions == null) actions = FindObjectOfType<PlayerActions>();
+                if (actions != null)
+                {
+                    actions.TakeDamage(attackDamage);
+                }
+            }
+        }
+        Dead();
+    }
+
+    // Fonctions de r√©trocompatibilit√© pour tout appel externe
+    public void OrbitPlayer() { PatrolRoom(); }
+    public void RotateAroundPlayer() { }
+    public void ReturnToPlayer() { ReturnToPatrol(); }
+    public void VaryHeight() { }
+
     private void OnDestroy()
     {
         allDrones.Remove(this);
