@@ -598,8 +598,6 @@ namespace EhOhMosquitoes.Editor
             {
                 // Vuforia 11 requiert impérativement ARM64 (pas ARMv7)
                 PlayerSettings.Android.targetArchitectures = AndroidArchitecture.ARM64;
-                // Désactiver le Custom Keystore pour utiliser la clé de debug standard automatique et éviter tout blocage de mot de passe
-                PlayerSettings.Android.useCustomKeystore = false;
             }
 
             string targetName = useVuforia ? "VUFORIA (Compatible 95% des téléphones)" : "ARCORE (Téléphones certifiés)";

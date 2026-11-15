@@ -130,7 +130,7 @@ MonoBehaviour:
   timeBetweenAttack: 8
   attackSpeed: 4.5
   attackRange: 1.2
-  attackDamage: 35
+  attackDamage: 22
   explosionRadius: 2
   coin: 250
   startHealth: 300

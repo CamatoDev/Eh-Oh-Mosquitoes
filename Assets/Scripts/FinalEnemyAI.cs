@@ -22,7 +22,8 @@ public class FinalEnemyAI : MonoBehaviour
     public float timeBetweenAttack = 8.0f;
     public float attackSpeed = 4.5f;
     public float attackRange = 1.2f;
-    public float attackDamage = 35.0f;
+    [Tooltip("Dégâts infligés par le Boss (22 PV = 5 attaques pour Game Over, pas de one-shot)")]
+    public float attackDamage = 22.0f;
     public float explosionRadius = 2.0f;
 
     [Header("Statistiques du Boss")]
@@ -48,7 +49,7 @@ public class FinalEnemyAI : MonoBehaviour
     private float waypointTimer = 0.0f;
     private float nextWaypointDelay = 3.0f;
     private float attackTimer;
-    private float baseHeight;
+    [HideInInspector] public float baseHeight;
 
     private static List<FinalEnemyAI> allFinalDrones = new List<FinalEnemyAI>();
 
@@ -203,9 +204,12 @@ public class FinalEnemyAI : MonoBehaviour
                 actions.TakeDamage(attackDamage);
             }
 
-            attackTimer = timeBetweenAttack + Random.Range(0f, 2f);
+            Vector3 retreatDir = (transform.position - playerHead.position).normalized;
+            if (retreatDir.sqrMagnitude < 0.01f) retreatDir = Vector3.back;
+            currentPatrolTarget = patrolCenter + retreatDir * patrolRadius;
+
+            attackTimer = timeBetweenAttack + Random.Range(3.0f, 6.0f);
             currentState = BossState.Returning;
-            PickNewPatrolTarget();
         }
     }
 

@@ -30,8 +30,8 @@ public class EnemyAI : MonoBehaviour
     public float attackSpeed = 4.0f;
     [Tooltip("Distance de contact pour piquer le joueur")]
     public float attackRange = 0.9f;
-    [Tooltip("Dégâts infligés au joueur lors d'une piqûre")]
-    public float attackDamage = 20.0f;
+    [Tooltip("Dégâts infligés au joueur lors d'une piqûre (8 PV = survie à plus de 12 attaques)")]
+    public float attackDamage = 8.0f;
     [Tooltip("Rayon de l'explosion résiduelle")]
     public float explosionRadius = 0.5f;
 
@@ -41,11 +41,11 @@ public class EnemyAI : MonoBehaviour
     private float health;
 
     [Header("Dédoublement (Clonage)")]
-    public float cloneCooldown = 6.0f;
+    public float cloneCooldown = 18.0f;
     private float cloneTimer = 0.0f;
     public GameObject dronePrefab;
     public float cloneSpawnDistance = 2.5f;
-    public int maxDrones = 10;
+    public int maxDrones = 6;
 
     [Header("Audio")]
     public AudioSource audioSource;
@@ -57,7 +57,7 @@ public class EnemyAI : MonoBehaviour
     private float waypointTimer = 0.0f;
     private float nextWaypointDelay = 3.0f;
     private float attackTimer;
-    private float baseHeight;
+    [HideInInspector] public float baseHeight;
 
     // Liste statique globale de tous les drones actifs
     private static List<EnemyAI> allDrones = new List<EnemyAI>();
@@ -68,21 +68,22 @@ public class EnemyAI : MonoBehaviour
 
         health = startHealth > 0 ? startHealth : 100f;
         cloneTimer = cloneCooldown;
-        attackTimer = timeBetweenAttack + Random.Range(-1.5f, 2.0f);
-
         // Ancrage spatial dans le repère de la pièce
         if (patrolCenter == Vector3.zero)
         {
             patrolCenter = transform.position;
         }
         baseHeight = transform.position.y;
-
         PickNewPatrolTarget();
 
         if (!allDrones.Contains(this))
         {
             allDrones.Add(this);
         }
+
+        // Échelonner les attaques pour que les moustiques attaquent à tour de rôle
+        int droneIndex = allDrones.IndexOf(this);
+        attackTimer = timeBetweenAttack + Random.Range(2.0f, 4.0f) + (droneIndex * 4.5f);
     }
 
     void Update()
@@ -223,10 +224,13 @@ public class EnemyAI : MonoBehaviour
                 actions.TakeDamage(attackDamage);
             }
 
-            // Réinitialiser le timer d'attaque et repartir patrouiller
-            attackTimer = timeBetweenAttack + Random.Range(0f, 3f);
+            // Réinitialiser le timer d'attaque et repartir patrouiller loin du joueur
+            Vector3 retreatDir = (transform.position - playerHead.position).normalized;
+            if (retreatDir.sqrMagnitude < 0.01f) retreatDir = Vector3.back;
+            currentPatrolTarget = patrolCenter + retreatDir * patrolRadius;
+
+            attackTimer = timeBetweenAttack + Random.Range(3.0f, 6.0f);
             currentState = DroneState.Returning;
-            PickNewPatrolTarget();
         }
     }
 

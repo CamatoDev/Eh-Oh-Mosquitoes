@@ -131,14 +131,14 @@ MonoBehaviour:
   timeBetweenAttack: 9
   attackSpeed: 4
   attackRange: 0.9
-  attackDamage: 20
+  attackDamage: 8
   explosionRadius: 0.5
   coin: 100
   startHealth: 100
-  cloneCooldown: 6
+  cloneCooldown: 18
   dronePrefab: {fileID: 8355803737289180034}
   cloneSpawnDistance: 2.5
-  maxDrones: 10
+  maxDrones: 6
   audioSource: {fileID: 2632004272092352536}
   enemyDie: {fileID: 8300000, guid: b832a7f82db951d419e41df226c20459, type: 3}
 --- !u!82 &2632004272092352536
