@@ -14,6 +14,8 @@ public class PlayerActions : MonoBehaviour
 
     [Header("Shoot Action")]
     public float shootRate = 1f;
+    [Tooltip("Délai de sécurité au début avant de pouvoir tirer")]
+    public float initialSpawnProtection = 3.0f;
     private float spawnProtection;
     private float shootCountdown = 0f;
     public GameObject bulletPrefab;
@@ -24,10 +26,15 @@ public class PlayerActions : MonoBehaviour
     public float damageCooldown = 0.8f;
     private float lastDamageTime = -10f;
 
+    [Header("Audio Dégâts")]
+    [Tooltip("Son joué lorsque le joueur est piqué par un moustique")]
+    public AudioClip hurtSound;
+    public AudioSource hurtAudioSource;
+
     private void Start()
     {
         playerStats = gameObject.GetComponent<PlayerStats>();
-        spawnProtection = 10f;
+        spawnProtection = initialSpawnProtection;
     }
 
     private void Update()
@@ -67,6 +74,16 @@ public class PlayerActions : MonoBehaviour
             return;
         }
         lastDamageTime = Time.time;
+
+        // Effet sonore de piqûre / blessure
+        if (hurtAudioSource != null && hurtSound != null)
+        {
+            hurtAudioSource.PlayOneShot(hurtSound);
+        }
+        else if (hurtSound != null)
+        {
+            AudioSource.PlayClipAtPoint(hurtSound, transform.position);
+        }
 
         if (playerStats == null)
         {

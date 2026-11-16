@@ -51,7 +51,7 @@ public class FinalEnemyAI : MonoBehaviour
     private float attackTimer;
     [HideInInspector] public float baseHeight;
 
-    private static List<FinalEnemyAI> allFinalDrones = new List<FinalEnemyAI>();
+    public static readonly List<FinalEnemyAI> allFinalDrones = new List<FinalEnemyAI>();
 
     void Start()
     {

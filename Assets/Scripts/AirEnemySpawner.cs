@@ -8,7 +8,7 @@ public class AirEnemySpawner : MonoBehaviour
 
     [Header("Configuration du Spawning")]
     [Tooltip("Nombre de moustiques au démarrage")]
-    public int initialCount = 3;
+    public int initialCount = 5;
 
     [Tooltip("Distance d'apparition devant le joueur (en mètres)")]
     public float spawnDistance = 4.2f;
@@ -66,12 +66,15 @@ public class AirEnemySpawner : MonoBehaviour
             camForward = Vector3.forward;
         }
 
-        // Répartition en éventail panoramique dans la pièce
+        // Répartition en éventail panoramique dans la pièce (jusqu'à 5 moustiques)
         float[] angleOffsets = initialCount switch
         {
             1 => new float[] { 0f },
-            2 => new float[] { -30f, 30f },
-            _ => new float[] { -38f, 0f, 38f }
+            2 => new float[] { -25f, 25f },
+            3 => new float[] { -38f, 0f, 38f },
+            4 => new float[] { -45f, -15f, 15f, 45f },
+            5 => new float[] { -60f, -30f, 0f, 30f, 60f },
+            _ => new float[] { -60f, -30f, 0f, 30f, 60f }
         };
 
         for (int i = 0; i < angleOffsets.Length; i++)

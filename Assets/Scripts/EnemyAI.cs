@@ -41,11 +41,12 @@ public class EnemyAI : MonoBehaviour
     private float health;
 
     [Header("Dédoublement (Clonage)")]
-    public float cloneCooldown = 18.0f;
+    public float cloneCooldown = 10.0f;
     private float cloneTimer = 0.0f;
     public GameObject dronePrefab;
     public float cloneSpawnDistance = 2.5f;
-    public int maxDrones = 6;
+    [Tooltip("Nombre maximum de moustiques simultanés")]
+    public int maxDrones = 10;
 
     [Header("Audio")]
     public AudioSource audioSource;
@@ -60,7 +61,7 @@ public class EnemyAI : MonoBehaviour
     [HideInInspector] public float baseHeight;
 
     // Liste statique globale de tous les drones actifs
-    private static List<EnemyAI> allDrones = new List<EnemyAI>();
+    public static readonly List<EnemyAI> allDrones = new List<EnemyAI>();
 
     void Start()
     {

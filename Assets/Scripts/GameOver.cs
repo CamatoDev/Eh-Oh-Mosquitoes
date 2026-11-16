@@ -12,10 +12,28 @@ public class GameOver : MonoBehaviour
     public PlayerStats stats;
     public string menuSceneName = "";
 
+    private void OnEnable()
+    {
+        UpdateScoreDisplay();
+    }
+
     // Start is called before the first frame update
     void Start()
     {
-        finalScore.text = "Score : " + stats.points;
+        UpdateScoreDisplay();
+    }
+
+    public void UpdateScoreDisplay()
+    {
+        if (stats == null)
+        {
+            stats = FindObjectOfType<PlayerStats>();
+        }
+
+        if (stats != null && finalScore != null)
+        {
+            finalScore.text = "Score : " + Mathf.RoundToInt(stats.points).ToString();
+        }
     }
 
     // Update is called once per frame
