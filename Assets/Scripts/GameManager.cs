@@ -101,6 +101,18 @@ public class GameManager : MonoBehaviour
         sceneFader.FadeTo(targetMenu);
     }
 
+    [Header("Paramètres")]
+    public SettingsPanelUI settingsPanel;
+
+    public void OpenSettings()
+    {
+        if (pauseAudioSource != null) pauseAudioSource.Play();
+        if (settingsPanel != null)
+        {
+            settingsPanel.OpenPanel();
+        }
+    }
+
     public void GameOver()
     {
         gameEnded = true;

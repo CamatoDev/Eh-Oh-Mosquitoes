@@ -32,7 +32,12 @@ public class GameOver : MonoBehaviour
 
         if (stats != null && finalScore != null)
         {
-            finalScore.text = "Score : " + Mathf.RoundToInt(stats.points).ToString();
+            int score = Mathf.RoundToInt(stats.points);
+            finalScore.text = "Score : " + score.ToString();
+            if (SettingsManager.Instance != null)
+            {
+                SettingsManager.Instance.UpdateBestScore(score);
+            }
         }
     }
 

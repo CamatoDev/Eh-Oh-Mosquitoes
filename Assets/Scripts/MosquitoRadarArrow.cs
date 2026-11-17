@@ -59,6 +59,17 @@ public class MosquitoRadarArrow : MonoBehaviour
 
     void LateUpdate()
     {
+        // Vérifier si le radar est activé dans les paramètres du joueur
+        if (SettingsManager.Instance != null)
+        {
+            if (!SettingsManager.Instance.radarEnabled)
+            {
+                if (arrowImage != null && arrowImage.enabled) arrowImage.enabled = false;
+                return;
+            }
+            radarRadius = SettingsManager.Instance.radarRadius;
+        }
+
         if (targetCamera == null)
         {
             ResolveCamera();

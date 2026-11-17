@@ -35,6 +35,30 @@ public class PlayerActions : MonoBehaviour
     {
         playerStats = gameObject.GetComponent<PlayerStats>();
         spawnProtection = initialSpawnProtection;
+        ApplyHandedness();
+    }
+
+    public void ApplyHandedness()
+    {
+        if (shootButton != null && SettingsManager.Instance != null)
+        {
+            RectTransform rt = shootButton.GetComponent<RectTransform>();
+            if (rt != null)
+            {
+                if (SettingsManager.Instance.isLeftHanded)
+                {
+                    rt.anchorMin = new Vector2(0f, 0f);
+                    rt.anchorMax = new Vector2(0f, 0f);
+                    rt.anchoredPosition = new Vector2(Mathf.Abs(rt.anchoredPosition.x), rt.anchoredPosition.y);
+                }
+                else
+                {
+                    rt.anchorMin = new Vector2(1f, 0f);
+                    rt.anchorMax = new Vector2(1f, 0f);
+                    rt.anchoredPosition = new Vector2(-Mathf.Abs(rt.anchoredPosition.x), rt.anchoredPosition.y);
+                }
+            }
+        }
     }
 
     private void Update()
@@ -83,6 +107,12 @@ public class PlayerActions : MonoBehaviour
         else if (hurtSound != null)
         {
             AudioSource.PlayClipAtPoint(hurtSound, transform.position);
+        }
+
+        // Retour haptique smartphone (UNIQUEMENT sur piqûre subie)
+        if (SettingsManager.Instance != null)
+        {
+            SettingsManager.Instance.TriggerBiteHaptic();
         }
 
         if (playerStats == null)
