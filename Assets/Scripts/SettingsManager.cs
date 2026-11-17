@@ -1,9 +1,11 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
 /// Gestionnaire centralisé des paramètres et préférences utilisateur pour Eh-Oh-Mosquitoes.
 /// Persistance automatique via PlayerPrefs, application temps réel des volumes,
 /// haptique mobile, réticule de visée et fréquence d'affichage (FPS).
+/// Gère également le pseudo du joueur et le stockage des meilleurs scores (Top 5 / Top 10).
 /// </summary>
 public class SettingsManager : MonoBehaviour
 {
@@ -42,6 +44,8 @@ public class SettingsManager : MonoBehaviour
     private const string KEY_TARGET_FPS = "SETTINGS_TARGET_FPS";
     private const string KEY_SHOW_FPS = "SETTINGS_SHOW_FPS";
     private const string KEY_LANGUAGE = "SETTINGS_LANGUAGE";
+    private const string KEY_PLAYER_PSEUDO = "PLAYER_PSEUDO";
+    private const string KEY_BEST_SCORE = "BEST_SCORE";
 
     [Header("Audio")]
     [Range(0f, 1f)] public float masterVolume = 0.8f;
@@ -68,6 +72,7 @@ public class SettingsManager : MonoBehaviour
 
     [Header("Système & Langues")]
     public string currentLanguage = "FR"; // "FR" ou "EN"
+    public string playerPseudo = "Chasseur K-Mer";
 
     // Événements pour notifier les éléments de scène
     public delegate void OnSettingsChangedDelegate();
@@ -121,12 +126,11 @@ public class SettingsManager : MonoBehaviour
             currentLanguage = "FR";
         }
 
-        ApplyAudioSettings();
-        ApplyGraphicSettings();
+        playerPseudo = PlayerPrefs.GetString(KEY_PLAYER_PSEUDO, "Chasseur K-Mer");
     }
 
     /// <summary>
-    /// Sauvegarde l'ensemble des réglages dans le stockage permanent PlayerPrefs
+    /// Sauvegarde l'ensemble des réglages dans PlayerPrefs
     /// </summary>
     public void SaveAllSettings()
     {
@@ -148,33 +152,41 @@ public class SettingsManager : MonoBehaviour
         PlayerPrefs.SetInt(KEY_TARGET_FPS, targetFPS);
         PlayerPrefs.SetInt(KEY_SHOW_FPS, showFPSCounter ? 1 : 0);
         PlayerPrefs.SetString(KEY_LANGUAGE, currentLanguage);
+        PlayerPrefs.SetString(KEY_PLAYER_PSEUDO, playerPseudo);
 
         PlayerPrefs.Save();
-        OnSettingsChanged?.Invoke();
+        NotifySettingsChanged();
     }
 
     public void ApplyAudioSettings()
     {
         AudioListener.volume = isMuteGlobal ? 0f : masterVolume;
+        AudioListener.pause = isMuteGlobal;
+        NotifySettingsChanged();
     }
 
     public void ApplyGraphicSettings()
     {
-        Application.targetFrameRate = targetFPS > 0 ? targetFPS : 60;
+        Application.targetFrameRate = targetFPS;
+        QualitySettings.vSyncCount = (targetFPS == 60) ? 1 : 0;
+        NotifySettingsChanged();
     }
 
-    /// <summary>
-    /// Déclenche une vibration haptique sur smartphone UNIQUEMENT lors d'une piqûre de moustique subie.
-    /// Ne s'exécute jamais sur les tirs de spray conformément aux consignes.
-    /// </summary>
     public void TriggerBiteHaptic()
     {
         if (!hapticBiteEnabled) return;
 
-#if UNITY_ANDROID || UNITY_IOS
-        Handheld.Vibrate();
+#if UNITY_ANDROID && !UNITY_EDITOR
+        try
+        {
+            Handheld.Vibrate();
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogWarning("[SettingsManager] Erreur haptique : " + e.Message);
+        }
 #else
-        Debug.Log("[Haptic] Vibration piqûre simulée (Éditeur)");
+        Debug.Log("[SettingsManager] Haptique déclenché (Piqûre moustique subie) !");
 #endif
     }
 
@@ -191,7 +203,7 @@ public class SettingsManager : MonoBehaviour
 
     public int GetBestScore()
     {
-        return PlayerPrefs.GetInt("BEST_SCORE", 0);
+        return PlayerPrefs.GetInt(KEY_BEST_SCORE, 12450);
     }
 
     public void UpdateBestScore(int newScore)
@@ -199,18 +211,75 @@ public class SettingsManager : MonoBehaviour
         int currentBest = GetBestScore();
         if (newScore > currentBest)
         {
-            PlayerPrefs.SetInt("BEST_SCORE", newScore);
+            PlayerPrefs.SetInt(KEY_BEST_SCORE, newScore);
             PlayerPrefs.SetInt("HighScore", newScore);
             PlayerPrefs.Save();
             Debug.Log($"[SettingsManager] Nouveau record enregistré : {newScore} pts !");
         }
+        AddLeaderboardScore(playerPseudo, newScore);
     }
 
     public void ResetBestScore()
     {
-        PlayerPrefs.DeleteKey("BEST_SCORE");
+        PlayerPrefs.DeleteKey(KEY_BEST_SCORE);
         PlayerPrefs.DeleteKey("HighScore");
+        for (int i = 0; i < 10; i++)
+        {
+            PlayerPrefs.DeleteKey($"LEADERBOARD_PSEUDO_{i}");
+            PlayerPrefs.DeleteKey($"LEADERBOARD_SCORE_{i}");
+            PlayerPrefs.DeleteKey($"LEADERBOARD_DATE_{i}");
+        }
         PlayerPrefs.Save();
         Debug.Log("[SettingsManager] Records et meilleurs scores réinitialisés.");
+    }
+
+    [System.Serializable]
+    public struct ScoreEntry
+    {
+        public string pseudo;
+        public int score;
+        public string date;
+    }
+
+    public List<ScoreEntry> GetTopScores(int count = 5)
+    {
+        List<ScoreEntry> list = new List<ScoreEntry>();
+        for (int i = 0; i < count; i++)
+        {
+            string defaultPseudo = i == 0 ? "Chasseur Élite" : (i == 1 ? "Mami Wata" : "Tirailleur");
+            int defaultScore = i == 0 ? 12450 : (5 - i) * 2200;
+            string p = PlayerPrefs.GetString($"LEADERBOARD_PSEUDO_{i}", defaultPseudo);
+            int s = PlayerPrefs.GetInt($"LEADERBOARD_SCORE_{i}", defaultScore);
+            string d = PlayerPrefs.GetString($"LEADERBOARD_DATE_{i}", "17/11");
+            list.Add(new ScoreEntry { pseudo = p, score = s, date = d });
+        }
+        return list;
+    }
+
+    public void AddLeaderboardScore(string pseudo, int score)
+    {
+        List<ScoreEntry> list = GetTopScores(10);
+        list.Add(new ScoreEntry
+        {
+            pseudo = string.IsNullOrEmpty(pseudo) ? playerPseudo : pseudo,
+            score = score,
+            date = System.DateTime.Now.ToString("dd/MM")
+        });
+        list.Sort((a, b) => b.score.CompareTo(a.score));
+        for (int i = 0; i < 10; i++)
+        {
+            if (i < list.Count)
+            {
+                PlayerPrefs.SetString($"LEADERBOARD_PSEUDO_{i}", list[i].pseudo);
+                PlayerPrefs.SetInt($"LEADERBOARD_SCORE_{i}", list[i].score);
+                PlayerPrefs.SetString($"LEADERBOARD_DATE_{i}", list[i].date);
+            }
+        }
+        PlayerPrefs.Save();
+    }
+
+    private void NotifySettingsChanged()
+    {
+        OnSettingsChanged?.Invoke();
     }
 }

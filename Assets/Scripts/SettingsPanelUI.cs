@@ -4,23 +4,23 @@ using UnityEngine.UI;
 
 /// <summary>
 /// Contrôleur d'interface utilisateur pour le Panel des Paramètres de Eh-Oh-Mosquitoes.
-/// Gère la navigation par onglets modulaires, les curseurs audio, le retour tactile,
-/// le choix du réticule Ndop, le framerate (30/60 FPS) et le bilinguisme Français/Anglais.
+/// Reproduction fidèle et exacte de la maquette carousel Ndop (5 onglets modulaires).
+/// Gère les curseurs audio, haptique, réticules, FPS, bilinguisme FR/EN, pseudo joueur et meilleur score.
 /// </summary>
 public class SettingsPanelUI : MonoBehaviour
 {
-    [Header("Panneau Principal")]
+    [Header("Structure Principale")]
     public GameObject panelRoot;
     public Button closeButton;
     public Button saveButton;
     public Text headerTitleText;
 
-    [Header("Onglets de Navigation")]
-    public Button[] tabButtons;
+    [Header("Navigation par Onglets")]
+    public Button[] tabButtons; // 0=Audio, 1=Controles, 2=Viseur, 3=Graphismes, 4=Systeme
     public GameObject[] tabContents;
     public Text[] tabButtonTexts;
 
-    [Header("Onglet Audio")]
+    [Header("Onglet 1 : Audio")]
     public Slider masterSlider;
     public Text masterValueText;
     public Slider sfxSlider;
@@ -30,64 +30,83 @@ public class SettingsPanelUI : MonoBehaviour
     public Slider buzzSlider;
     public Text buzzValueText;
     public Button muteGlobalButton;
-    public Text muteGlobalStatusText;
+    public Image muteGlobalToggleBg;
+    public RectTransform muteGlobalToggleKnob;
 
-    [Header("Onglet Contrôles & Haptique")]
+    [Header("Onglet 2 : Contrôles & Haptique")]
     public Button hapticBiteButton;
-    public Text hapticBiteStatusText;
-    public Button handednessButton;
-    public Text handednessStatusText;
+    public Image hapticBiteToggleBg;
+    public RectTransform hapticBiteToggleKnob;
+    public Button handednessRightButton;
+    public Button handednessLeftButton;
     public Slider gyroSlider;
     public Text gyroValueText;
 
-    [Header("Onglet Viseur & Radar")]
-    public Button[] reticleStyleButtons;
-    public Button[] reticleColorButtons;
+    [Header("Onglet 3 : Viseur & Radar 360°")]
+    public Button[] reticleStyleButtons; // 0=Classique, 1=Ndop Guerrier, 2=Precision
+    public Outline[] reticleStyleOutlines;
+    public Button[] reticleColorButtons; // 0=Or, 1=Vert, 2=Rouge, 3=Blanc
+    public Outline[] reticleColorOutlines;
+    public Image reticlePreviewImage;
+    public Sprite[] reticleSprites;
     public Button radarToggleButton;
-    public Text radarToggleStatusText;
+    public Image radarToggleBg;
+    public RectTransform radarToggleKnob;
     public Slider radarRadiusSlider;
     public Text radarRadiusValueText;
-    public Image reticlePreviewImage;
-    public Sprite[] reticleSprites; // 0=Classique, 1=Ndop, 2=Précision
 
-    [Header("Onglet Graphismes")]
+    [Header("Onglet 4 : Graphismes & Batterie AR")]
     public Button fps30Button;
     public Button fps60Button;
-    public Text fpsModeStatusText;
     public Button showFPSButton;
-    public Text showFPSStatusText;
+    public Image showFPSToggleBg;
+    public RectTransform showFPSToggleKnob;
 
-    [Header("Onglet Système")]
+    [Header("Onglet 5 : Système & Langues")]
     public Button langFRButton;
     public Button langENButton;
+    public InputField pseudoInput;
+    public Text bestScoreValueText;
     public Button resetScoreButton;
     public Text resetScoreFeedbackText;
     public Text creditsText;
 
     private int currentTabIndex = 0;
 
-    void Awake()
+    // Palette de couleurs Ndop
+    private readonly Color COLOR_GOLD = new Color(0.96f, 0.72f, 0.18f, 1f);      // #F5B82E
+    private readonly Color COLOR_DARK_TEXT = new Color(0.08f, 0.11f, 0.07f, 1f);  // #141B12
+    private readonly Color COLOR_LIGHT_TEXT = new Color(0.96f, 0.93f, 0.88f, 1f); // #F4EDE0
+    private readonly Color COLOR_DIM_TEXT = new Color(0.72f, 0.69f, 0.62f, 1f);   // #B8AF9E
+    private readonly Color COLOR_ACTIVE_BG = new Color(0.96f, 0.72f, 0.18f, 1f);  // Gold
+    private readonly Color COLOR_INACTIVE_BG = new Color(0.11f, 0.15f, 0.10f, 1f);// Dark Olive
+    private readonly Color COLOR_TOGGLE_ON = new Color(0.25f, 0.36f, 0.20f, 1f);  // Green Olive
+    private readonly Color COLOR_TOGGLE_OFF = new Color(0.11f, 0.15f, 0.10f, 1f); // Dark Olive
+    private readonly Color COLOR_KNOB_ON = Color.white;
+    private readonly Color COLOR_KNOB_OFF = new Color(0.55f, 0.48f, 0.35f, 1f);
+
+    private void Awake()
     {
         if (panelRoot == null) panelRoot = gameObject;
     }
 
-    void Start()
+    private void Start()
     {
         BindEvents();
     }
 
-    void OnEnable()
+    private void OnEnable()
     {
         RefreshUIFromManager();
         SelectTab(currentTabIndex);
     }
 
-    void BindEvents()
+    private void BindEvents()
     {
         if (closeButton != null) closeButton.onClick.AddListener(ClosePanel);
         if (saveButton != null) saveButton.onClick.AddListener(SaveAndClose);
 
-        // Onglets
+        // Navigation onglets
         for (int i = 0; i < tabButtons.Length; i++)
         {
             int tabIndex = i;
@@ -97,19 +116,20 @@ public class SettingsPanelUI : MonoBehaviour
             }
         }
 
-        // Audio Sliders
+        // 1. Audio Sliders
         if (masterSlider != null) masterSlider.onValueChanged.AddListener(OnMasterSliderChanged);
         if (sfxSlider != null) sfxSlider.onValueChanged.AddListener(OnSFXSliderChanged);
         if (bgmSlider != null) bgmSlider.onValueChanged.AddListener(OnBGMSliderChanged);
         if (buzzSlider != null) buzzSlider.onValueChanged.AddListener(OnBuzzSliderChanged);
         if (muteGlobalButton != null) muteGlobalButton.onClick.AddListener(ToggleMuteGlobal);
 
-        // Contrôles
+        // 2. Contrôles
         if (hapticBiteButton != null) hapticBiteButton.onClick.AddListener(ToggleHapticBite);
-        if (handednessButton != null) handednessButton.onClick.AddListener(ToggleHandedness);
+        if (handednessRightButton != null) handednessRightButton.onClick.AddListener(() => SetHandedness(false));
+        if (handednessLeftButton != null) handednessLeftButton.onClick.AddListener(() => SetHandedness(true));
         if (gyroSlider != null) gyroSlider.onValueChanged.AddListener(OnGyroSliderChanged);
 
-        // Viseur & Radar
+        // 3. Viseur & Radar
         for (int i = 0; i < reticleStyleButtons.Length; i++)
         {
             int rIndex = i;
@@ -127,14 +147,15 @@ public class SettingsPanelUI : MonoBehaviour
         if (radarToggleButton != null) radarToggleButton.onClick.AddListener(ToggleRadar);
         if (radarRadiusSlider != null) radarRadiusSlider.onValueChanged.AddListener(OnRadarRadiusChanged);
 
-        // Graphismes
+        // 4. Graphismes
         if (fps30Button != null) fps30Button.onClick.AddListener(() => SetTargetFPS(30));
         if (fps60Button != null) fps60Button.onClick.AddListener(() => SetTargetFPS(60));
         if (showFPSButton != null) showFPSButton.onClick.AddListener(ToggleShowFPS);
 
-        // Système
+        // 5. Système
         if (langFRButton != null) langFRButton.onClick.AddListener(() => SetLanguage("FR"));
         if (langENButton != null) langENButton.onClick.AddListener(() => SetLanguage("EN"));
+        if (pseudoInput != null) pseudoInput.onEndEdit.AddListener(OnPseudoChanged);
         if (resetScoreButton != null) resetScoreButton.onClick.AddListener(OnResetScoreClicked);
     }
 
@@ -169,20 +190,46 @@ public class SettingsPanelUI : MonoBehaviour
         for (int i = 0; i < tabContents.Length; i++)
         {
             if (tabContents[i] != null)
-            {
                 tabContents[i].SetActive(i == index);
-            }
         }
 
-        // Style actif sur les boutons d'onglet
+        // Style actif sur les onglets du haut
         for (int i = 0; i < tabButtons.Length; i++)
         {
             if (tabButtons[i] != null)
             {
-                ColorBlock cb = tabButtons[i].colors;
-                cb.normalColor = (i == index) ? new Color(0.96f, 0.72f, 0.18f, 1f) : new Color(0.14f, 0.20f, 0.12f, 0.8f);
-                tabButtons[i].colors = cb;
+                SetSegmentedVisual(tabButtons[i], i == index);
             }
+        }
+
+        UpdateHeaderTitle();
+    }
+
+    private void UpdateHeaderTitle()
+    {
+        if (headerTitleText == null || SettingsManager.Instance == null) return;
+        bool isFR = SettingsManager.Instance.currentLanguage == "FR";
+
+        switch (currentTabIndex)
+        {
+            case 0:
+                headerTitleText.text = isFR ? "PARAMÈTRES AUDIO" : "AUDIO SETTINGS";
+                break;
+            case 1:
+                headerTitleText.text = isFR ? "CONTRÔLES & HAPTIQUE" : "CONTROLS & HAPTICS";
+                break;
+            case 2:
+                headerTitleText.text = isFR ? "VISEUR & RADAR 360°" : "CROSSHAIR & 360° RADAR";
+                break;
+            case 3:
+                headerTitleText.text = isFR ? "GRAPHISMES & BATTERIE AR" : "GRAPHICS & AR BATTERY";
+                break;
+            case 4:
+                headerTitleText.text = isFR ? "SYSTÈME & LANGUES" : "SYSTEM & LANGUAGES";
+                break;
+            default:
+                headerTitleText.text = isFR ? "PARAMÈTRES" : "SETTINGS";
+                break;
         }
     }
 
@@ -191,52 +238,102 @@ public class SettingsPanelUI : MonoBehaviour
         if (SettingsManager.Instance == null) return;
         SettingsManager sm = SettingsManager.Instance;
 
-        // Audio
-        if (masterSlider != null) masterSlider.value = sm.masterVolume;
+        // 1. Audio
+        if (masterSlider != null) masterSlider.SetValueWithoutNotify(sm.masterVolume);
         if (masterValueText != null) masterValueText.text = Mathf.RoundToInt(sm.masterVolume * 100f) + "%";
 
-        if (sfxSlider != null) sfxSlider.value = sm.sfxVolume;
+        if (sfxSlider != null) sfxSlider.SetValueWithoutNotify(sm.sfxVolume);
         if (sfxValueText != null) sfxValueText.text = Mathf.RoundToInt(sm.sfxVolume * 100f) + "%";
 
-        if (bgmSlider != null) bgmSlider.value = sm.bgmVolume;
+        if (bgmSlider != null) bgmSlider.SetValueWithoutNotify(sm.bgmVolume);
         if (bgmValueText != null) bgmValueText.text = Mathf.RoundToInt(sm.bgmVolume * 100f) + "%";
 
-        if (buzzSlider != null) buzzSlider.value = sm.mosquitoBuzzVolume;
+        if (buzzSlider != null) buzzSlider.SetValueWithoutNotify(sm.mosquitoBuzzVolume);
         if (buzzValueText != null) buzzValueText.text = Mathf.RoundToInt(sm.mosquitoBuzzVolume * 100f) + "%";
 
-        if (muteGlobalStatusText != null)
-            muteGlobalStatusText.text = sm.isMuteGlobal ? (sm.currentLanguage == "FR" ? "ACTIVÉ" : "MUTED") : (sm.currentLanguage == "FR" ? "SON ACTIF" : "AUDIO ON");
+        UpdateToggleSwitch(muteGlobalToggleBg, muteGlobalToggleKnob, sm.isMuteGlobal);
 
-        // Contrôles
-        if (hapticBiteStatusText != null)
-            hapticBiteStatusText.text = sm.hapticBiteEnabled ? (sm.currentLanguage == "FR" ? "ACTIVÉ (PIQÛRES)" : "ENABLED (BITES)") : (sm.currentLanguage == "FR" ? "DÉSACTIVÉ" : "DISABLED");
+        // 2. Contrôles
+        UpdateToggleSwitch(hapticBiteToggleBg, hapticBiteToggleKnob, sm.hapticBiteEnabled);
+        SetSegmentedVisual(handednessRightButton, !sm.isLeftHanded);
+        SetSegmentedVisual(handednessLeftButton, sm.isLeftHanded);
 
-        if (handednessStatusText != null)
-            handednessStatusText.text = sm.isLeftHanded ? (sm.currentLanguage == "FR" ? "MODE GAUCHER" : "LEFT-HANDED") : (sm.currentLanguage == "FR" ? "MODE DROITIER" : "RIGHT-HANDED");
+        if (gyroSlider != null) gyroSlider.SetValueWithoutNotify(sm.gyroSensitivity);
+        if (gyroValueText != null) gyroValueText.text = sm.gyroSensitivity.ToString("F1") + "x" + (Mathf.Approximately(sm.gyroSensitivity, 1.0f) ? " (Défaut)" : "");
 
-        if (gyroSlider != null) gyroSlider.value = sm.gyroSensitivity;
-        if (gyroValueText != null) gyroValueText.text = sm.gyroSensitivity.ToString("F1") + "x";
+        // 3. Viseur & Radar
+        for (int i = 0; i < reticleStyleButtons.Length; i++)
+        {
+            if (reticleStyleOutlines != null && i < reticleStyleOutlines.Length && reticleStyleOutlines[i] != null)
+            {
+                reticleStyleOutlines[i].enabled = (i == sm.reticleIndex);
+                reticleStyleOutlines[i].effectColor = COLOR_GOLD;
+            }
+        }
 
-        // Viseur & Radar
+        for (int i = 0; i < reticleColorButtons.Length; i++)
+        {
+            if (reticleColorOutlines != null && i < reticleColorOutlines.Length && reticleColorOutlines[i] != null)
+            {
+                reticleColorOutlines[i].enabled = (i == sm.reticleColorIndex);
+                reticleColorOutlines[i].effectColor = Color.white;
+            }
+        }
+
         UpdateReticlePreview();
-        if (radarToggleStatusText != null)
-            radarToggleStatusText.text = sm.radarEnabled ? (sm.currentLanguage == "FR" ? "RADAR VISIBLE" : "RADAR ON") : (sm.currentLanguage == "FR" ? "MASQUÉ" : "HIDDEN");
-
-        if (radarRadiusSlider != null) radarRadiusSlider.value = sm.radarRadius;
+        UpdateToggleSwitch(radarToggleBg, radarToggleKnob, sm.radarEnabled);
+        if (radarRadiusSlider != null) radarRadiusSlider.SetValueWithoutNotify(sm.radarRadius);
         if (radarRadiusValueText != null) radarRadiusValueText.text = Mathf.RoundToInt(sm.radarRadius) + " px";
 
-        // Graphismes
-        if (fpsModeStatusText != null)
-            fpsModeStatusText.text = sm.targetFPS == 30 ? (sm.currentLanguage == "FR" ? "30 FPS (ÉCO BATTERIE)" : "30 FPS (BATTERY SAVER)") : (sm.currentLanguage == "FR" ? "60 FPS (QUALITÉ FLUIDE)" : "60 FPS (SMOOTH)");
+        // 4. Graphismes
+        SetSegmentedVisual(fps30Button, sm.targetFPS == 30);
+        SetSegmentedVisual(fps60Button, sm.targetFPS == 60);
+        UpdateToggleSwitch(showFPSToggleBg, showFPSToggleKnob, sm.showFPSCounter);
 
-        if (showFPSStatusText != null)
-            showFPSStatusText.text = sm.showFPSCounter ? (sm.currentLanguage == "FR" ? "AFFICHÉ" : "VISIBLE") : (sm.currentLanguage == "FR" ? "MASQUÉ" : "HIDDEN");
+        // 5. Système
+        SetSegmentedVisual(langFRButton, sm.currentLanguage == "FR");
+        SetSegmentedVisual(langENButton, sm.currentLanguage == "EN");
+        if (pseudoInput != null) pseudoInput.text = sm.playerPseudo;
+        if (bestScoreValueText != null) bestScoreValueText.text = sm.GetBestScore().ToString("N0").Replace(",", " ") + " PTS";
 
-        // Langue & Textes
         UpdateLanguageTexts();
+        UpdateHeaderTitle();
     }
 
-    void OnMasterSliderChanged(float val)
+    private void SetSegmentedVisual(Button btn, bool isActive)
+    {
+        if (btn == null) return;
+        Image img = btn.GetComponent<Image>();
+        if (img != null)
+        {
+            img.color = isActive ? COLOR_ACTIVE_BG : COLOR_INACTIVE_BG;
+        }
+
+        Text txt = btn.GetComponentInChildren<Text>();
+        if (txt != null)
+        {
+            txt.color = isActive ? COLOR_DARK_TEXT : COLOR_LIGHT_TEXT;
+        }
+    }
+
+    private void UpdateToggleSwitch(Image bg, RectTransform knob, bool isOn)
+    {
+        if (bg != null)
+        {
+            bg.color = isOn ? COLOR_TOGGLE_ON : COLOR_TOGGLE_OFF;
+        }
+        if (knob != null)
+        {
+            knob.anchoredPosition = new Vector2(isOn ? 24f : -24f, 0f);
+            Image knobImg = knob.GetComponent<Image>();
+            if (knobImg != null)
+            {
+                knobImg.color = isOn ? COLOR_KNOB_ON : COLOR_KNOB_OFF;
+            }
+        }
+    }
+
+    private void OnMasterSliderChanged(float val)
     {
         if (SettingsManager.Instance == null) return;
         SettingsManager.Instance.masterVolume = val;
@@ -244,73 +341,89 @@ public class SettingsPanelUI : MonoBehaviour
         if (masterValueText != null) masterValueText.text = Mathf.RoundToInt(val * 100f) + "%";
     }
 
-    void OnSFXSliderChanged(float val)
+    private void OnSFXSliderChanged(float val)
     {
         if (SettingsManager.Instance == null) return;
         SettingsManager.Instance.sfxVolume = val;
         if (sfxValueText != null) sfxValueText.text = Mathf.RoundToInt(val * 100f) + "%";
     }
 
-    void OnBGMSliderChanged(float val)
+    private void OnBGMSliderChanged(float val)
     {
         if (SettingsManager.Instance == null) return;
         SettingsManager.Instance.bgmVolume = val;
         if (bgmValueText != null) bgmValueText.text = Mathf.RoundToInt(val * 100f) + "%";
     }
 
-    void OnBuzzSliderChanged(float val)
+    private void OnBuzzSliderChanged(float val)
     {
         if (SettingsManager.Instance == null) return;
         SettingsManager.Instance.mosquitoBuzzVolume = val;
         if (buzzValueText != null) buzzValueText.text = Mathf.RoundToInt(val * 100f) + "%";
     }
 
-    void ToggleMuteGlobal()
+    private void ToggleMuteGlobal()
     {
         if (SettingsManager.Instance == null) return;
         SettingsManager.Instance.isMuteGlobal = !SettingsManager.Instance.isMuteGlobal;
         SettingsManager.Instance.ApplyAudioSettings();
-        RefreshUIFromManager();
+        UpdateToggleSwitch(muteGlobalToggleBg, muteGlobalToggleKnob, SettingsManager.Instance.isMuteGlobal);
     }
 
-    void ToggleHapticBite()
+    private void ToggleHapticBite()
     {
         if (SettingsManager.Instance == null) return;
         SettingsManager.Instance.hapticBiteEnabled = !SettingsManager.Instance.hapticBiteEnabled;
-        RefreshUIFromManager();
+        UpdateToggleSwitch(hapticBiteToggleBg, hapticBiteToggleKnob, SettingsManager.Instance.hapticBiteEnabled);
     }
 
-    void ToggleHandedness()
+    private void SetHandedness(bool leftHanded)
     {
         if (SettingsManager.Instance == null) return;
-        SettingsManager.Instance.isLeftHanded = !SettingsManager.Instance.isLeftHanded;
-        RefreshUIFromManager();
+        SettingsManager.Instance.isLeftHanded = leftHanded;
+        SetSegmentedVisual(handednessRightButton, !leftHanded);
+        SetSegmentedVisual(handednessLeftButton, leftHanded);
+
         PlayerActions pa = FindObjectOfType<PlayerActions>();
         if (pa != null) pa.ApplyHandedness();
     }
 
-    void OnGyroSliderChanged(float val)
+    private void OnGyroSliderChanged(float val)
     {
         if (SettingsManager.Instance == null) return;
         SettingsManager.Instance.gyroSensitivity = val;
-        if (gyroValueText != null) gyroValueText.text = val.ToString("F1") + "x";
+        if (gyroValueText != null) gyroValueText.text = val.ToString("F1") + "x" + (Mathf.Approximately(val, 1.0f) ? " (Défaut)" : "");
     }
 
-    void SetReticleStyle(int index)
+    private void SetReticleStyle(int index)
     {
         if (SettingsManager.Instance == null) return;
         SettingsManager.Instance.reticleIndex = index;
+
+        for (int i = 0; i < reticleStyleButtons.Length; i++)
+        {
+            if (reticleStyleOutlines != null && i < reticleStyleOutlines.Length && reticleStyleOutlines[i] != null)
+                reticleStyleOutlines[i].enabled = (i == index);
+        }
+
         UpdateReticlePreview();
     }
 
-    void SetReticleColor(int index)
+    private void SetReticleColor(int index)
     {
         if (SettingsManager.Instance == null) return;
         SettingsManager.Instance.reticleColorIndex = index;
+
+        for (int i = 0; i < reticleColorButtons.Length; i++)
+        {
+            if (reticleColorOutlines != null && i < reticleColorOutlines.Length && reticleColorOutlines[i] != null)
+                reticleColorOutlines[i].enabled = (i == index);
+        }
+
         UpdateReticlePreview();
     }
 
-    void UpdateReticlePreview()
+    private void UpdateReticlePreview()
     {
         if (SettingsManager.Instance == null) return;
         if (reticlePreviewImage != null && reticleSprites != null && reticleSprites.Length > SettingsManager.Instance.reticleIndex)
@@ -320,47 +433,65 @@ public class SettingsPanelUI : MonoBehaviour
         }
     }
 
-    void ToggleRadar()
+    private void ToggleRadar()
     {
         if (SettingsManager.Instance == null) return;
         SettingsManager.Instance.radarEnabled = !SettingsManager.Instance.radarEnabled;
-        RefreshUIFromManager();
+        UpdateToggleSwitch(radarToggleBg, radarToggleKnob, SettingsManager.Instance.radarEnabled);
     }
 
-    void OnRadarRadiusChanged(float val)
+    private void OnRadarRadiusChanged(float val)
     {
         if (SettingsManager.Instance == null) return;
         SettingsManager.Instance.radarRadius = val;
         if (radarRadiusValueText != null) radarRadiusValueText.text = Mathf.RoundToInt(val) + " px";
     }
 
-    void SetTargetFPS(int fps)
+    private void SetTargetFPS(int fps)
     {
         if (SettingsManager.Instance == null) return;
         SettingsManager.Instance.targetFPS = fps;
         SettingsManager.Instance.ApplyGraphicSettings();
-        RefreshUIFromManager();
+        SetSegmentedVisual(fps30Button, fps == 30);
+        SetSegmentedVisual(fps60Button, fps == 60);
     }
 
-    void ToggleShowFPS()
+    private void ToggleShowFPS()
     {
         if (SettingsManager.Instance == null) return;
         SettingsManager.Instance.showFPSCounter = !SettingsManager.Instance.showFPSCounter;
-        RefreshUIFromManager();
+        UpdateToggleSwitch(showFPSToggleBg, showFPSToggleKnob, SettingsManager.Instance.showFPSCounter);
     }
 
-    void SetLanguage(string lang)
+    private void SetLanguage(string lang)
     {
         if (SettingsManager.Instance == null) return;
         SettingsManager.Instance.currentLanguage = lang;
-        RefreshUIFromManager();
+        SetSegmentedVisual(langFRButton, lang == "FR");
+        SetSegmentedVisual(langENButton, lang == "EN");
+        UpdateLanguageTexts();
+        UpdateHeaderTitle();
     }
 
-    void OnResetScoreClicked()
+    private void OnPseudoChanged(string newPseudo)
+    {
+        if (SettingsManager.Instance == null) return;
+        if (!string.IsNullOrEmpty(newPseudo))
+        {
+            SettingsManager.Instance.playerPseudo = newPseudo.Trim();
+            SettingsManager.Instance.SaveAllSettings();
+        }
+    }
+
+    private void OnResetScoreClicked()
     {
         if (SettingsManager.Instance != null)
         {
             SettingsManager.Instance.ResetBestScore();
+            if (bestScoreValueText != null)
+            {
+                bestScoreValueText.text = SettingsManager.Instance.GetBestScore().ToString("N0").Replace(",", " ") + " PTS";
+            }
             if (resetScoreFeedbackText != null)
             {
                 resetScoreFeedbackText.text = SettingsManager.Instance.currentLanguage == "FR" ? "Scores réinitialisés !" : "Scores reset!";
@@ -368,13 +499,10 @@ public class SettingsPanelUI : MonoBehaviour
         }
     }
 
-    void UpdateLanguageTexts()
+    private void UpdateLanguageTexts()
     {
         if (SettingsManager.Instance == null) return;
         bool isFR = SettingsManager.Instance.currentLanguage == "FR";
-
-        if (headerTitleText != null)
-            headerTitleText.text = isFR ? "⚙️ PARAMÈTRES" : "⚙️ SETTINGS";
 
         if (tabButtonTexts != null && tabButtonTexts.Length >= 5)
         {
@@ -395,8 +523,8 @@ public class SettingsPanelUI : MonoBehaviour
         if (creditsText != null)
         {
             creditsText.text = isFR
-                ? "Développeur : Camatodev\nÉditeur : Vortex Makers × K-Mer Play\nMoteur : Unity 2022.3 LTS • Vuforia AR\nVersion : v1.2"
-                : "Developer: Camatodev\nPublisher: Vortex Makers × K-Mer Play\nEngine: Unity 2022.3 LTS • Vuforia AR\nVersion: v1.2";
+                ? "Développeur : Camatodev\nÉditeur : Vortex Makers × K-Mer Play\nMoteur : Unity 2022.3 LTS • Vuforia Engine AR\nVersion : v1.2 (Festival Pousse-Pions Build)"
+                : "Developer: Camatodev\nPublisher: Vortex Makers × K-Mer Play\nEngine: Unity 2022.3 LTS • Vuforia Engine AR\nVersion: v1.2 (Festival Pousse-Pions Build)";
         }
     }
 }
