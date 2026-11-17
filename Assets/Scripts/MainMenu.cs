@@ -24,11 +24,28 @@ public class MainMenu : MonoBehaviour
     [Header("Panel des Paramètres")]
     public SettingsPanelUI settingsPanel;
 
+    private void Awake()
+    {
+        audioSource = gameObject.GetComponent<AudioSource>();
+    }
+
+    private void OnEnable()
+    {
+        SettingsManager.OnSettingsChanged += SyncAudioFromSettings;
+    }
+
+    private void OnDisable()
+    {
+        SettingsManager.OnSettingsChanged -= SyncAudioFromSettings;
+    }
+
     // Start is called before the first frame update
     void Start()
     {
-        // Assignation des variables 
-        audioSource = gameObject.GetComponent<AudioSource>();
+        if (audioSource == null)
+        {
+            audioSource = gameObject.GetComponent<AudioSource>();
+        }
 
         if (SceneManager.GetActiveScene().name.Contains("Vuforia"))
         {
@@ -39,20 +56,58 @@ public class MainMenu : MonoBehaviour
             levelToLoad = "Level01_ARCore";
         }
 
+        // Déclenche l'initialisation de SettingsManager si pas encore présent et applique les volumes
         if (SettingsManager.Instance != null)
         {
-            mute = SettingsManager.Instance.isMuteGlobal;
-            if (soundButton != null && soundButton.image != null)
-            {
-                soundButton.image.sprite = mute ? muteImage : unmuteImage;
-            }
+            SettingsManager.Instance.ApplyAudioSettings();
+            SyncAudioFromSettings();
         }
+    }
+
+    /// <summary>
+    /// Synchronise en temps réel le volume BGM du menu, le volume SFX des boutons
+    /// et l'icône Mute/Unmute du menu principal avec SettingsManager.
+    /// </summary>
+    public void SyncAudioFromSettings()
+    {
+        if (SettingsManager.Instance == null) return;
+        SettingsManager sm = SettingsManager.Instance;
+
+        mute = sm.isMuteGlobal;
+
+        if (soundButton != null && soundButton.image != null)
+        {
+            soundButton.image.sprite = mute ? muteImage : unmuteImage;
+        }
+
+        if (audioSource != null)
+        {
+            audioSource.mute = mute;
+            audioSource.volume = sm.bgmVolume;
+        }
+
+        if (buttonAudioSource != null)
+        {
+            buttonAudioSource.mute = mute;
+            buttonAudioSource.volume = sm.sfxVolume;
+        }
+    }
+
+    private void PlayButtonClick()
+    {
+        if (buttonAudioSource == null) return;
+        if (SettingsManager.Instance != null)
+        {
+            if (SettingsManager.Instance.isMuteGlobal) return;
+            buttonAudioSource.volume = SettingsManager.Instance.sfxVolume;
+        }
+        buttonAudioSource.Play();
     }
 
     // Fonction pour le lancement du jeu 
     public void Play()
     {
-        if (buttonAudioSource != null) buttonAudioSource.Play();
+        PlayButtonClick();
         if (sceneFader != null)
         {
             sceneFader.FadeTo(levelToLoad);
@@ -63,30 +118,36 @@ public class MainMenu : MonoBehaviour
         }
     }
 
-    // Fonction pour le son 
+    // Fonction pour le son (synchronisation bidirectionnelle avec Mute Global dans Settings)
     public void MenuSound()
     {
-        if (buttonAudioSource != null) buttonAudioSource.Play();
-        mute = !mute;
-        if (soundButton != null && soundButton.image != null)
-        {
-            soundButton.image.sprite = mute ? muteImage : unmuteImage;
-        }
-        if (audioSource != null)
-        {
-            audioSource.mute = mute;
-        }
         if (SettingsManager.Instance != null)
         {
-            SettingsManager.Instance.isMuteGlobal = mute;
+            SettingsManager.Instance.isMuteGlobal = !SettingsManager.Instance.isMuteGlobal;
             SettingsManager.Instance.ApplyAudioSettings();
+            SettingsManager.Instance.SaveAllSettings();
+            // SyncAudioFromSettings est appelé via OnSettingsChanged, on le sécurise aussi ici
+            SyncAudioFromSettings();
+            if (!SettingsManager.Instance.isMuteGlobal)
+            {
+                PlayButtonClick();
+            }
+        }
+        else
+        {
+            mute = !mute;
+            if (soundButton != null && soundButton.image != null)
+            {
+                soundButton.image.sprite = mute ? muteImage : unmuteImage;
+            }
+            if (audioSource != null) audioSource.mute = mute;
         }
     }
 
     // Fonction pour les réglages
     public void Settings()
     {
-        if (buttonAudioSource != null) buttonAudioSource.Play();
+        PlayButtonClick();
         if (settingsPanel != null)
         {
             settingsPanel.OpenPanel();

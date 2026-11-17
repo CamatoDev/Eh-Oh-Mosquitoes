@@ -310,7 +310,12 @@ public class EnemyAI : MonoBehaviour
 
         if (enemyDie != null)
         {
-            AudioSource.PlayClipAtPoint(enemyDie, transform.position);
+            bool muted = SettingsManager.Instance != null && SettingsManager.Instance.isMuteGlobal;
+            float sfxVol = SettingsManager.Instance != null ? SettingsManager.Instance.sfxVolume : 1f;
+            if (!muted && sfxVol > 0.001f)
+            {
+                AudioSource.PlayClipAtPoint(enemyDie, transform.position, sfxVol);
+            }
         }
 
         Destroy(gameObject);

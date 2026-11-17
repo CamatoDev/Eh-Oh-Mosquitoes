@@ -71,7 +71,12 @@ public class FinalEnemyAI : MonoBehaviour
 
         if (enemySpawn != null)
         {
-            AudioSource.PlayClipAtPoint(enemySpawn, transform.position);
+            bool muted = SettingsManager.Instance != null && SettingsManager.Instance.isMuteGlobal;
+            float sfxVol = SettingsManager.Instance != null ? SettingsManager.Instance.sfxVolume : 1f;
+            if (!muted && sfxVol > 0.001f)
+            {
+                AudioSource.PlayClipAtPoint(enemySpawn, transform.position, sfxVol);
+            }
         }
 
         if (!allFinalDrones.Contains(this))
@@ -284,7 +289,12 @@ public class FinalEnemyAI : MonoBehaviour
 
         if (enemyDie != null)
         {
-            AudioSource.PlayClipAtPoint(enemyDie, transform.position);
+            bool muted = SettingsManager.Instance != null && SettingsManager.Instance.isMuteGlobal;
+            float sfxVol = SettingsManager.Instance != null ? SettingsManager.Instance.sfxVolume : 1f;
+            if (!muted && sfxVol > 0.001f)
+            {
+                AudioSource.PlayClipAtPoint(enemyDie, transform.position, sfxVol);
+            }
         }
 
         Destroy(gameObject);

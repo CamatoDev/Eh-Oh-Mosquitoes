@@ -29,6 +29,21 @@ public class GameManager : MonoBehaviour
     public GameObject finalEnemyGO;
     bool hasSpawn = false;
 
+    [Header("Paramètres")]
+    public SettingsPanelUI settingsPanel;
+
+    private AudioSource gameOverAudioSource;
+
+    private void OnEnable()
+    {
+        SettingsManager.OnSettingsChanged += SyncAudioFromSettings;
+    }
+
+    private void OnDisable()
+    {
+        SettingsManager.OnSettingsChanged -= SyncAudioFromSettings;
+    }
+
     // Start is called before the first frame update
     void Start()
     {
@@ -37,6 +52,52 @@ public class GameManager : MonoBehaviour
         pause = false;
         hasSpawn = false;
         Time.timeScale = 1f; //temps sur play 
+
+        if (gameOverUI != null)
+        {
+            gameOverAudioSource = gameOverUI.GetComponent<AudioSource>();
+        }
+
+        if (SettingsManager.Instance != null)
+        {
+            SettingsManager.Instance.ApplyAudioSettings();
+            SyncAudioFromSettings();
+        }
+    }
+
+    public void SyncAudioFromSettings()
+    {
+        if (SettingsManager.Instance == null) return;
+        SettingsManager sm = SettingsManager.Instance;
+
+        // Clic boutons Pause / Menu (canal SFX)
+        if (pauseAudioSource != null)
+        {
+            pauseAudioSource.mute = sm.isMuteGlobal;
+            pauseAudioSource.volume = sm.sfxVolume;
+        }
+
+        // Jingle Game Over (canal SFX, selon choix utilisateur)
+        if (gameOverAudioSource == null && gameOverUI != null)
+        {
+            gameOverAudioSource = gameOverUI.GetComponent<AudioSource>();
+        }
+        if (gameOverAudioSource != null)
+        {
+            gameOverAudioSource.mute = sm.isMuteGlobal;
+            gameOverAudioSource.volume = sm.sfxVolume;
+        }
+    }
+
+    private void PlayPauseClick()
+    {
+        if (pauseAudioSource == null) return;
+        if (SettingsManager.Instance != null)
+        {
+            if (SettingsManager.Instance.isMuteGlobal) return;
+            pauseAudioSource.volume = SettingsManager.Instance.sfxVolume;
+        }
+        pauseAudioSource.Play();
     }
 
     // Update is called once per frame
@@ -53,19 +114,19 @@ public class GameManager : MonoBehaviour
         timerText.text = string.Format("{0:00.00}", timer);
 
         Vector3 pos = playerPos.position + new Vector3(-5f, 0f, 0f);
-        if(timer <= 60 && !hasSpawn)
+        if (timer <= 60 && !hasSpawn)
         {
             hasSpawn = true;
             Debug.Log("Apparition du boss");
             GameObject finalEnemy = (GameObject)Instantiate(finalEnemyGO, pos, Quaternion.identity);
         }
 
-        if(timer <= 0f)
+        if (timer <= 0f)
         {
             GameOver();
         }
 
-        if(playerStats.currentHealth <= 0f)
+        if (playerStats.currentHealth <= 0f)
         {
             GameOver();
         }
@@ -73,7 +134,7 @@ public class GameManager : MonoBehaviour
 
     public void Toggle()
     {
-        pauseAudioSource.Play();
+        PlayPauseClick();
         pause = !pause;
 
         //mettre le temps sur pause si on est en pause et le faire continuer sinon 
@@ -93,7 +154,7 @@ public class GameManager : MonoBehaviour
 
     public void Menu()
     {
-        pauseAudioSource.Play();
+        PlayPauseClick();
         Time.timeScale = 1f;
         string targetMenu = !string.IsNullOrEmpty(menuSceneName)
             ? menuSceneName
@@ -101,12 +162,9 @@ public class GameManager : MonoBehaviour
         sceneFader.FadeTo(targetMenu);
     }
 
-    [Header("Paramètres")]
-    public SettingsPanelUI settingsPanel;
-
     public void OpenSettings()
     {
-        if (pauseAudioSource != null) pauseAudioSource.Play();
+        PlayPauseClick();
         if (settingsPanel != null)
         {
             settingsPanel.OpenPanel();
@@ -117,6 +175,7 @@ public class GameManager : MonoBehaviour
     {
         gameEnded = true;
         Debug.Log("Fin de la partie !");
+        SyncAudioFromSettings();
         gameOverUI.SetActive(true);
         Time.timeScale = 0f; //temps en pause 
     }

@@ -31,11 +31,75 @@ public class PlayerActions : MonoBehaviour
     public AudioClip hurtSound;
     public AudioSource hurtAudioSource;
 
+    private void OnEnable()
+    {
+        SettingsManager.OnSettingsChanged += SyncAudioAndControls;
+    }
+
+    private void OnDisable()
+    {
+        SettingsManager.OnSettingsChanged -= SyncAudioAndControls;
+    }
+
     private void Start()
     {
         playerStats = gameObject.GetComponent<PlayerStats>();
         spawnProtection = initialSpawnProtection;
+
+        EnsureIndependentAudioSources();
+        SyncAudioAndControls();
+    }
+
+    /// <summary>
+    /// Garantit que le bourdonnement 3D des moustiques et le son de piqûre (SFX)
+    /// possèdent deux AudioSources distinctes pour des réglages de volume 100% indépendants.
+    /// </summary>
+    private void EnsureIndependentAudioSources()
+    {
+        if (flyingMosquitoAudioSource == null)
+        {
+            flyingMosquitoAudioSource = GetComponent<AudioSource>();
+        }
+
+        if (hurtAudioSource == null || hurtAudioSource == flyingMosquitoAudioSource)
+        {
+            AudioSource dedicatedHurt = gameObject.AddComponent<AudioSource>();
+            dedicatedHurt.playOnAwake = false;
+            dedicatedHurt.loop = false;
+            dedicatedHurt.spatialBlend = 0f;
+            hurtAudioSource = dedicatedHurt;
+        }
+    }
+
+    public void SyncAudioAndControls()
+    {
         ApplyHandedness();
+
+        if (SettingsManager.Instance == null) return;
+        SettingsManager sm = SettingsManager.Instance;
+
+        EnsureIndependentAudioSources();
+
+        // Bourdonnement moustiques (slider dédié Bourdonnement Moustiques 3D)
+        if (flyingMosquitoAudioSource != null)
+        {
+            flyingMosquitoAudioSource.mute = sm.isMuteGlobal;
+            flyingMosquitoAudioSource.volume = sm.mosquitoBuzzVolume;
+        }
+
+        // Spray / Tir (slider Effets Sonores SFX)
+        if (buttonaudioSource != null)
+        {
+            buttonaudioSource.mute = sm.isMuteGlobal;
+            buttonaudioSource.volume = sm.sfxVolume;
+        }
+
+        // Son de piqûre subie (slider Effets Sonores SFX)
+        if (hurtAudioSource != null)
+        {
+            hurtAudioSource.mute = sm.isMuteGlobal;
+            hurtAudioSource.volume = sm.sfxVolume;
+        }
     }
 
     public void ApplyHandedness()
@@ -72,7 +136,6 @@ public class PlayerActions : MonoBehaviour
         else
         {
             shootButton.interactable = true;
-            //flyingMosquitoAudioSource.Play();
         }
     }
 
@@ -85,7 +148,16 @@ public class PlayerActions : MonoBehaviour
         }
 
         shootCountdown -= 10;
-        buttonaudioSource.Play();
+
+        if (buttonaudioSource != null)
+        {
+            if (SettingsManager.Instance != null)
+            {
+                buttonaudioSource.mute = SettingsManager.Instance.isMuteGlobal;
+                buttonaudioSource.volume = SettingsManager.Instance.sfxVolume;
+            }
+            buttonaudioSource.Play();
+        }
 
         StartCoroutine(ShootColdDown());
     }
@@ -99,14 +171,22 @@ public class PlayerActions : MonoBehaviour
         }
         lastDamageTime = Time.time;
 
-        // Effet sonore de piqûre / blessure
-        if (hurtAudioSource != null && hurtSound != null)
+        // Effet sonore de piqûre / blessure (lié au volume SFX)
+        EnsureIndependentAudioSources();
+        float sfxVol = SettingsManager.Instance != null ? SettingsManager.Instance.sfxVolume : 1f;
+        bool isMuted = SettingsManager.Instance != null && SettingsManager.Instance.isMuteGlobal;
+
+        if (!isMuted && hurtSound != null)
         {
-            hurtAudioSource.PlayOneShot(hurtSound);
-        }
-        else if (hurtSound != null)
-        {
-            AudioSource.PlayClipAtPoint(hurtSound, transform.position);
+            if (hurtAudioSource != null)
+            {
+                hurtAudioSource.volume = sfxVol;
+                hurtAudioSource.PlayOneShot(hurtSound, 1f);
+            }
+            else
+            {
+                AudioSource.PlayClipAtPoint(hurtSound, transform.position, sfxVol);
+            }
         }
 
         // Retour haptique smartphone (UNIQUEMENT sur piqûre subie)
