@@ -21,8 +21,9 @@ public class MainMenu : MonoBehaviour
     public string levelToLoad = "Level01_Vuforia";
     public SceneFader sceneFader;
 
-    [Header("Panel des Paramètres")]
+    [Header("Panel des Paramètres & Classement")]
     public SettingsPanelUI settingsPanel;
+    public LeaderboardPanelUI leaderboardPanel;
 
     private void Awake()
     {
@@ -155,6 +156,20 @@ public class MainMenu : MonoBehaviour
         else
         {
             Debug.Log("[MainMenu] Ouverture des options de personnalisations");
+        }
+    }
+
+    // Fonction pour le classement des meilleurs scores (Top 5 / Top 10)
+    public void OpenLeaderboard()
+    {
+        PlayButtonClick();
+        if (leaderboardPanel != null)
+        {
+            leaderboardPanel.OpenPanel();
+        }
+        else
+        {
+            Debug.Log("[MainMenu] Ouverture du panel Classement (MyScore)");
         }
     }
 }

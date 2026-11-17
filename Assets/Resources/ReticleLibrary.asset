@@ -13,9 +13,9 @@ MonoBehaviour:
   m_Name: ReticleLibrary
   m_EditorClassIdentifier: 
   reticleSprites:
-  - {fileID: 21300000, guid: 5047fb28b20d59e41a03af6c60a9650d, type: 3}
+  - {fileID: 21300000, guid: fbfbf4e278b075544975b8a7cfc45f65, type: 3}
   - {fileID: 21300000, guid: 612ea7f093f791742b7f2243d0378fda, type: 3}
-  - {fileID: 21300000, guid: 532b0a0fd08f4d045af5099b86a61466, type: 3}
+  - {fileID: 21300000, guid: 6c899d4b78ffb9147be6d932c03ccadc, type: 3}
   scaleMultipliers:
   - 1
   - 1
