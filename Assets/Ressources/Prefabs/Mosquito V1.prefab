@@ -134,13 +134,14 @@ MonoBehaviour:
   explosionRadius: 2
   coin: 250
   startHealth: 300
-  cloneCooldown: 5
+  cloneCooldown: 8
   dronePrefab: {fileID: 9068920526188899581}
   cloneSpawnDistance: 3
   maxDrones: 4
   audioSource: {fileID: 6498498782644318977}
   enemyDie: {fileID: 8300000, guid: 41544fb872d9fe947bfed48822084efc, type: 3}
   enemySpawn: {fileID: 8300000, guid: 717ca216998a8134086822d3fab18338, type: 3}
+  baseHeight: 0
 --- !u!82 &6498498782644318977
 AudioSource:
   m_ObjectHideFlags: 0
