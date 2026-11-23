@@ -12,6 +12,8 @@ public class GameOver : MonoBehaviour
     public PlayerStats stats;
     public string menuSceneName = "";
 
+    private bool scoreRecorded = false;
+
     private void OnEnable()
     {
         UpdateScoreDisplay();
@@ -20,7 +22,7 @@ public class GameOver : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
-        UpdateScoreDisplay();
+        // OnEnable prend déjà en charge l'affichage et l'enregistrement unique du score
     }
 
     public void UpdateScoreDisplay()
@@ -34,8 +36,9 @@ public class GameOver : MonoBehaviour
         {
             int score = Mathf.RoundToInt(stats.points);
             finalScore.text = "Score : " + score.ToString();
-            if (SettingsManager.Instance != null)
+            if (!scoreRecorded && SettingsManager.Instance != null)
             {
+                scoreRecorded = true;
                 SettingsManager.Instance.UpdateBestScore(score);
             }
         }

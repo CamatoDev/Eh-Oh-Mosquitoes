@@ -177,6 +177,5 @@ public class GameManager : MonoBehaviour
         Debug.Log("Fin de la partie !");
         SyncAudioFromSettings();
         gameOverUI.SetActive(true);
-        Time.timeScale = 0f; //temps en pause 
     }
 }

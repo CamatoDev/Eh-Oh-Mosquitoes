@@ -373,7 +373,7 @@ MonoBehaviour:
   sceneFader: {fileID: 456151558}
   finalScore: {fileID: 1756835395}
   stats: {fileID: 968145034}
-  menuSceneName: 
+  menuSceneName: MainMenu_Vuforia
 --- !u!82 &41992035
 AudioSource:
   m_ObjectHideFlags: 0

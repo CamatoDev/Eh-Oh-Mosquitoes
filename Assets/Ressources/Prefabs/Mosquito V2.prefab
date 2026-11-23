@@ -138,7 +138,7 @@ MonoBehaviour:
   cloneCooldown: 6
   dronePrefab: {fileID: 8355803737289180034}
   cloneSpawnDistance: 2.5
-  maxDrones: 18
+  maxDrones: 16
   audioSource: {fileID: 2632004272092352536}
   enemyDie: {fileID: 8300000, guid: b832a7f82db951d419e41df226c20459, type: 3}
   baseHeight: 0

@@ -47,6 +47,12 @@ public class SettingsManager : MonoBehaviour
     private const string KEY_PLAYER_PSEUDO = "PLAYER_PSEUDO";
     private const string KEY_BEST_SCORE = "BEST_SCORE";
     private const string KEY_LEADERBOARD_COUNT = "LEADERBOARD_COUNT";
+    private const string KEY_SANITIZED_V1 = "LEADERBOARD_SANITIZED_TWINS";
+
+    // Protection anti-rebond en mémoire (évite l'enregistrement double à la même seconde)
+    private string lastAddedPseudo = "";
+    private int lastAddedScore = -1;
+    private float lastAddedTime = -999f;
 
     [Header("Audio")]
     [Range(0f, 1f)] public float masterVolume = 0.8f;
@@ -134,6 +140,9 @@ public class SettingsManager : MonoBehaviour
         }
 
         playerPseudo = PlayerPrefs.GetString(KEY_PLAYER_PSEUDO, "Chasseur K-Mer");
+
+        // Nettoyage automatique des anciens doublons jumeaux polluant les PlayerPrefs
+        SanitizeExistingLeaderboard();
     }
 
     /// <summary>
@@ -315,15 +324,36 @@ public class SettingsManager : MonoBehaviour
     {
         if (score <= 0) return;
 
+        string effectivePseudo = string.IsNullOrEmpty(pseudo) ? playerPseudo : pseudo;
+
+        // Protection anti-rebond immédiat : empêche l'enregistrement double à la même seconde
+        if (lastAddedScore == score && lastAddedPseudo == effectivePseudo && (Time.realtimeSinceStartup - lastAddedTime) < 2.0f)
+        {
+            Debug.LogWarning($"[SettingsManager] Doublon immédiat ignoré pour '{effectivePseudo}' avec {score} pts.");
+            return;
+        }
+
+        lastAddedPseudo = effectivePseudo;
+        lastAddedScore = score;
+        lastAddedTime = Time.realtimeSinceStartup;
+
         List<ScoreEntry> list = GetTopScores(10);
         list.Add(new ScoreEntry
         {
-            pseudo = string.IsNullOrEmpty(pseudo) ? playerPseudo : pseudo,
+            pseudo = effectivePseudo,
             score = score,
             date = System.DateTime.Now.ToString("dd/MM")
         });
         list.Sort((a, b) => b.score.CompareTo(a.score));
 
+        SaveLeaderboardList(list);
+    }
+
+    /// <summary>
+    /// Sauvegarde propre d'une liste ordonnée dans PlayerPrefs et efface les clés excédentaires
+    /// </summary>
+    private void SaveLeaderboardList(List<ScoreEntry> list)
+    {
         int finalCount = Mathf.Min(list.Count, 10);
         PlayerPrefs.SetInt(KEY_LEADERBOARD_COUNT, finalCount);
         for (int i = 0; i < finalCount; i++)
@@ -332,6 +362,55 @@ public class SettingsManager : MonoBehaviour
             PlayerPrefs.SetInt($"LEADERBOARD_SCORE_{i}", list[i].score);
             PlayerPrefs.SetString($"LEADERBOARD_DATE_{i}", list[i].date);
         }
+        for (int i = finalCount; i < 10; i++)
+        {
+            PlayerPrefs.DeleteKey($"LEADERBOARD_PSEUDO_{i}");
+            PlayerPrefs.DeleteKey($"LEADERBOARD_SCORE_{i}");
+            PlayerPrefs.DeleteKey($"LEADERBOARD_DATE_{i}");
+        }
+        PlayerPrefs.Save();
+    }
+
+    /// <summary>
+    /// Nettoie automatiquement les doublons jumeaux existants dans PlayerPrefs (Option 2 : multi-runs distincts autorisés)
+    /// </summary>
+    public void SanitizeExistingLeaderboard()
+    {
+        if (PlayerPrefs.GetInt(KEY_SANITIZED_V1, 0) == 1) return;
+
+        List<ScoreEntry> raw = GetTopScores(10);
+        if (raw.Count > 1)
+        {
+            List<ScoreEntry> cleaned = new List<ScoreEntry>();
+            for (int i = 0; i < raw.Count; i++)
+            {
+                bool isTwin = false;
+                // Détecte les doublons stricts jumeaux (même pseudo, même score, même date) créés par le bogue double-trigger
+                for (int j = 0; j < cleaned.Count; j++)
+                {
+                    if (cleaned[j].pseudo == raw[i].pseudo &&
+                        cleaned[j].score == raw[i].score &&
+                        cleaned[j].date == raw[i].date)
+                    {
+                        isTwin = true;
+                        break;
+                    }
+                }
+
+                if (!isTwin)
+                {
+                    cleaned.Add(raw[i]);
+                }
+            }
+
+            if (cleaned.Count != raw.Count)
+            {
+                Debug.Log($"[SettingsManager] Nettoyage initial : {raw.Count - cleaned.Count} doublon(s) jumeau(x) supprimé(s).");
+                SaveLeaderboardList(cleaned);
+            }
+        }
+
+        PlayerPrefs.SetInt(KEY_SANITIZED_V1, 1);
         PlayerPrefs.Save();
     }
 
